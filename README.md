@@ -33,6 +33,9 @@ The application performs the following key functions:
                                               +-----------+
 ```
 
+## Workflow of Step Functions
+
+![StepFunctions](picture/cloudwatch-log-exporter-step-function.png)
 
 ## Installation
 
