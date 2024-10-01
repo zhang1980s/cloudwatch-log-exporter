@@ -63,9 +63,10 @@ npm install
 ```
 
 4. During deployment, you'll be prompted to enter values for the following parameters:
-logPrefix: The prefix for exported logs in the S3 bucket
-ScheduleParameter: The cron schedule for running the export process
-ExportDaysParameter: The number of days of logs to export
+* logPrefix: The prefix for exported logs in the S3 bucket
+* ScheduleParameter: The cron schedule for running the export process
+* ExportDaysParameter: The number of days of logs to export
+
 
 5. After deployment, the CDK will output the ARN of the Step Functions state machine. You can use this ARN to manually trigger the export process if needed.
 
