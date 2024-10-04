@@ -23,16 +23,15 @@ export class CloudwatchLogExporterStack extends cdk.Stack {
             stringValue: 'us-east-1,s3://aaa\nus-east-2,s3://bbb',
             description: 'Mapping of regions to S3 buckets for CloudWatch log export',
         });
-
         // Create SNS Topic for failed exports
         const failedExportsTopic = new sns.Topic(this, 'FailedExportsTopic', {
             topicName: 'cloudwatch-log-export-failures',
         });
 
         // Create CloudFormation parameters
-        const logPrefix = new cdk.CfnParameter(this, 'logPrefix', {
+        const exportlogPrefix = new cdk.CfnParameter(this, 'exportlogPrefix', {
             type: 'String',
-            description: 'The logPrefix in destination bucket',
+            description: 'The exportlogPrefix in destination bucket',
             default: 'myPrefix',
         });
 
@@ -90,6 +89,7 @@ export class CloudwatchLogExporterStack extends cdk.Stack {
                 SSM_PARAM_NAME: regionBucketParam.parameterName,
                 EXPORT_DAYS: exportDaysParameter.valueAsString,
                 SNS_TOPIC_ARN: failedExportsTopic.topicArn,
+                EXPORTLOG_PREFIX: exportlogPrefix.valueAsString,
             },
         });
 

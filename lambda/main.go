@@ -8,7 +8,6 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
@@ -16,13 +15,14 @@ import (
 
 var (
 	dynamoClient *dynamodb.Client
-	cwLogsClient *cloudwatchlogs.Client
-	ssmClient    *ssm.Client
-	snsClient    *sns.Client
-	tableName    string
-	ssmParamName string
-	exportDays   int
-	snsTopic     string
+	//cwLogsClient    *cloudwatchlogs.Client
+	ssmClient       *ssm.Client
+	snsClient       *sns.Client
+	tableName       string
+	ssmParamName    string
+	exportDays      int
+	snsTopic        string
+	exportlogPrefix string
 )
 
 func init() {
@@ -32,7 +32,7 @@ func init() {
 	}
 
 	dynamoClient = dynamodb.NewFromConfig(cfg)
-	cwLogsClient = cloudwatchlogs.NewFromConfig(cfg)
+	//cwLogsClient = cloudwatchlogs.NewFromConfig(cfg)
 	ssmClient = ssm.NewFromConfig(cfg)
 	snsClient = sns.NewFromConfig(cfg)
 
@@ -43,6 +43,7 @@ func init() {
 		exportDays = 1
 	}
 	snsTopic = os.Getenv("SNS_TOPIC_ARN")
+	exportlogPrefix = os.Getenv("EXPORTLOG_PREFIX")
 }
 
 func main() {

@@ -71,7 +71,7 @@ func getRegionBucketMap(ctx context.Context) ([]RegionBucketMap, error) {
 		Name: aws.String(ssmParamName),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get SSM parameter: %v", err)
+		return nil, fmt.Errorf("failed to get SSM parameter: %w", err)
 	}
 
 	var regionBucketMap []RegionBucketMap
@@ -131,12 +131,14 @@ func listLogGroups(ctx context.Context) (interface{}, error) {
 				})
 				if err != nil {
 					log.Printf("Error listing tags for log group %s: %v", aws.ToString(logGroup.LogGroupName), err)
-					// Continue processing even if tag listing fails
+
 					tags = &cloudwatchlogs.ListTagsForResourceOutput{} // Empty tags
 				}
 
-				if value, exists := tags.Tags["auto-backup"]; exists && value == "no" {
-					continue
+				itemStatus := "PENDING"
+
+				if value, exists := tags.Tags["auto-export"]; exists && value == "no" {
+					itemStatus = "SKIP"
 				}
 
 				// Add log group to DynamoDB
@@ -145,7 +147,7 @@ func listLogGroups(ctx context.Context) (interface{}, error) {
 					Item: map[string]dynamodbtypes.AttributeValue{
 						"Region":     &dynamodbtypes.AttributeValueMemberS{Value: rbm.Region},
 						"Name":       &dynamodbtypes.AttributeValueMemberS{Value: aws.ToString(logGroup.LogGroupName)},
-						"ItemStatus": &dynamodbtypes.AttributeValueMemberS{Value: "PENDING"},
+						"ItemStatus": &dynamodbtypes.AttributeValueMemberS{Value: itemStatus},
 					},
 				})
 				if err != nil {
@@ -158,7 +160,6 @@ func listLogGroups(ctx context.Context) (interface{}, error) {
 	return map[string]bool{"success": true}, nil
 }
 
-// FIXME: check all regions listed in parameter store
 func checkRunningTasks(ctx context.Context, region string) (interface{}, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
@@ -247,22 +248,29 @@ func createExportTask(ctx context.Context, event Event) (interface{}, error) {
 	cwLogsClient := cloudwatchlogs.NewFromConfig(cfg)
 
 	now := time.Now().UTC()
-	to := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	from := to.AddDate(0, 0, -exportDays)
+	from := time.Now().UTC().AddDate(0, 0, -exportDays).Truncate(24 * time.Hour)
+	to := time.Now().UTC().Truncate(24 * time.Hour)
 	log.Printf("Exporting logs from %s to %s", from.Format(time.RFC3339), now.Format(time.RFC3339))
 
-	destinationPrefix := fmt.Sprintf("%s/%s", event.LogGroupName, now.Format("2006/01/02"))
-	log.Printf("Destination prefix: %s", destinationPrefix)
+	DestinationPrefix := fmt.Sprintf(
+		"%s/%s/year=%d/month=%02d/day=%02d",
+		exportlogPrefix,
+		event.LogGroupName,
+		from.Year(),
+		from.Month(),
+		from.Day(),
+	)
+	log.Printf("Destination prefix: %s", DestinationPrefix)
 
 	input := &cloudwatchlogs.CreateExportTaskInput{
 		Destination:       aws.String(bucketName),
 		LogGroupName:      aws.String(event.LogGroupName),
-		From:              aws.Int64(from.UnixNano() / 1000000),
-		To:                aws.Int64(now.UnixNano() / 1000000),
-		DestinationPrefix: aws.String(destinationPrefix),
+		From:              aws.Int64(from.Unix() * 1000),
+		To:                aws.Int64(to.Unix() * 1000),
+		DestinationPrefix: aws.String(DestinationPrefix),
 	}
 
-	log.Printf("CreateExportTask input: Destination=%s, LogGroupName=%s, From=%s, To=%s, DestinationPrefix=%s",
+	log.Printf("CreateExportTask input: Destination=%s, LogGroupName=%s, From=%s, To=%s, formatDestinationPrefix=%s",
 		*input.Destination,
 		*input.LogGroupName,
 		time.Unix(0, *input.From*int64(time.Millisecond)).Format(time.RFC3339),

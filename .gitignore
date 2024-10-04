@@ -3,6 +3,7 @@
 *.d.ts
 node_modules
 lambda/bootstrap
+prompt.md
 
 # CDK asset staging directory
 .cdk.staging
